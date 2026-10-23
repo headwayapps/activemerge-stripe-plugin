@@ -1,6 +1,7 @@
-import {findApiKey} from './stripe';
+import {disconnect, getAccessToken, NotConnectedError, type AuthConfig} from './auth';
 
 // Shapes returned by the ActiveMerge API (see app/Http/Controllers/Api in activemergev2).
+// The Stripe App calls the OAuth-only routes under /api/stripe-app.
 export type Template = {
   unique_id: string;
   name: string;
@@ -19,18 +20,19 @@ export type GenerationJob = {
 export class ActiveMergeError extends Error {}
 
 export class ActiveMergeClient {
-  constructor(private readonly baseUrl: string) {}
+  constructor(
+    private readonly baseUrl: string,
+    private readonly auth: AuthConfig,
+    private readonly userId: string,
+  ) {}
 
   private async request<T>(path: string, init: RequestInit = {}): Promise<{status: number; body: T}> {
-    const apiKey = await findApiKey();
-    if (!apiKey) {
-      throw new ActiveMergeError('Add your ActiveMerge API key in the app settings first.');
-    }
+    const accessToken = await getAccessToken(this.auth, this.userId);
 
     const res = await fetch(`${this.baseUrl}${path}`, {
       ...init,
       headers: {
-        'API-KEY': apiKey,
+        Authorization: `Bearer ${accessToken}`,
         Accept: 'application/json',
         'Content-Type': 'application/json',
       },
@@ -38,7 +40,9 @@ export class ActiveMergeClient {
     const body = await res.json().catch(() => ({}));
 
     if (res.status === 401) {
-      throw new ActiveMergeError('ActiveMerge rejected the API key. Check it in the app settings.');
+      // The token was revoked in ActiveMerge.
+      await disconnect(this.userId);
+      throw new NotConnectedError();
     }
     if (!res.ok) {
       throw new ActiveMergeError(body.message ?? body.error ?? `ActiveMerge returned HTTP ${res.status}.`);
