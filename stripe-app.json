@@ -1,0 +1,41 @@
+{
+  "$schema": "https://stripe.com/stripe-app.schema.json",
+  "id": "com.activemerge.app",
+  "version": "0.0.1",
+  "name": "ActiveMerge",
+  "icon": "icon.png",
+  "distribution_type": "public",
+  "sandbox_install_compatible": true,
+  "stripe_api_access_type": "platform",
+  "permissions": [
+    {
+      "permission": "secret_write",
+      "purpose": "Stores your ActiveMerge API key securely so you only enter it once."
+    },
+    {
+      "permission": "customer_read",
+      "purpose": "Fills your document templates with the customer's name, email, phone and address."
+    },
+    {
+      "permission": "invoice_read",
+      "purpose": "Fills your document templates with invoice details and line items."
+    }
+  ],
+  "ui_extension": {
+    "views": [
+      { "viewport": "settings", "component": "AppSettings" },
+      { "viewport": "stripe.dashboard.customer.detail", "component": "CustomerDetail" },
+      { "viewport": "stripe.dashboard.invoice.detail", "component": "InvoiceDetail" }
+    ],
+    "content_security_policy": {
+      "connect-src": ["https://app.activemerge.com/api/"],
+      "purpose": "Sends the selected template and Stripe data to ActiveMerge to generate your document."
+    }
+  },
+  "post_install_action": {
+    "type": "settings"
+  },
+  "constants": {
+    "API_BASE": "https://app.activemerge.com/api"
+  }
+}
