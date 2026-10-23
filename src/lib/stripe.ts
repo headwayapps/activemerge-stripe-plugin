@@ -7,24 +7,23 @@ export const stripe = new Stripe(STRIPE_API_KEY, {
   apiVersion: '2025-02-24.acacia',
 });
 
-// One ActiveMerge key per Stripe account, shared by every Dashboard user of that account.
-const SECRET_NAME = 'activemerge_api_key';
-const SCOPE = {type: 'account' as const};
+// Each Dashboard user connects their own ActiveMerge account.
+const userScope = (userId: string) => ({type: 'user' as const, user: userId});
 
-export async function saveApiKey(apiKey: string): Promise<void> {
-  await stripe.apps.secrets.create({scope: SCOPE, name: SECRET_NAME, payload: apiKey});
+export async function saveSecret(userId: string, name: string, payload: string): Promise<void> {
+  await stripe.apps.secrets.create({scope: userScope(userId), name, payload});
 }
 
-export async function deleteApiKey(): Promise<void> {
-  await stripe.apps.secrets.deleteWhere({scope: SCOPE, name: SECRET_NAME});
+export async function deleteSecret(userId: string, name: string): Promise<void> {
+  await stripe.apps.secrets.deleteWhere({scope: userScope(userId), name});
 }
 
-export async function findApiKey(): Promise<string | null> {
+export async function findSecret(userId: string, name: string): Promise<string | null> {
   try {
-    const secret = await stripe.apps.secrets.find({scope: SCOPE, name: SECRET_NAME, expand: ['payload']});
+    const secret = await stripe.apps.secrets.find({scope: userScope(userId), name, expand: ['payload']});
     return secret.payload ?? null;
   } catch {
-    // The Secret Store returns 404 when no key has been saved yet.
+    // The Secret Store returns 404 when nothing has been saved yet.
     return null;
   }
 }

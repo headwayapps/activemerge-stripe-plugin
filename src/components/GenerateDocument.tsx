@@ -1,9 +1,12 @@
-import {useEffect, useMemo, useState} from 'react';
+import {useCallback, useEffect, useState} from 'react';
 import {Banner, Box, Button, Divider, Link, Select, Spinner, TextField} from '@stripe/ui-extension-sdk/ui';
 import type {ExtensionContextValue} from '@stripe/ui-extension-sdk/context';
 
-import {ActiveMergeClient, formatsFor, type Format, type GenerationJob, type Template} from '../lib/activemerge';
+import {formatsFor, type Format, type GenerationJob, type Template} from '../lib/activemerge';
+import {NotConnectedError} from '../lib/auth';
 import {buildItems, prefillFields, splitPlaceholders, type Values} from '../lib/prefill';
+import {useActiveMerge} from '../lib/useActiveMerge';
+import ConnectPrompt from './ConnectPrompt';
 
 type Props = {
   context: ExtensionContextValue;
@@ -16,10 +19,7 @@ type Props = {
 const errorMessage = (e: unknown) => (e instanceof Error ? e.message : 'Something went wrong.');
 
 export default function GenerateDocument({context, values, lineItems = []}: Props) {
-  const client = useMemo(
-    () => new ActiveMergeClient(context.environment.constants?.API_BASE as string),
-    [context.environment.constants],
-  );
+  const {status, connectUrl, error: connectError, client, markDisconnected} = useActiveMerge(context);
 
   const [templates, setTemplates] = useState<Template[] | null>(null);
   const [template, setTemplate] = useState<Template | null>(null);
@@ -31,9 +31,22 @@ export default function GenerateDocument({context, values, lineItems = []}: Prop
   const [job, setJob] = useState<GenerationJob | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const fail = useCallback(
+    (e: unknown) => {
+      if (e instanceof NotConnectedError) {
+        markDisconnected();
+      } else {
+        setError(errorMessage(e));
+      }
+    },
+    [markDisconnected],
+  );
+
   useEffect(() => {
-    client.templates().then(setTemplates).catch((e) => setError(errorMessage(e)));
-  }, [client]);
+    if (status === 'connected') {
+      client.templates().then(setTemplates).catch(fail);
+    }
+  }, [client, status, fail]);
 
   const selectTemplate = async (id: string) => {
     const selected = templates?.find((t) => t.unique_id === id) ?? null;
@@ -51,7 +64,7 @@ export default function GenerateDocument({context, values, lineItems = []}: Prop
       setFields(prefillFields(split.fields, values ?? {}));
       setItemColumns(split.itemColumns);
     } catch (e) {
-      setError(errorMessage(e));
+      fail(e);
     } finally {
       setLoadingFields(false);
     }
@@ -72,13 +85,17 @@ export default function GenerateDocument({context, values, lineItems = []}: Prop
         setError(result.error_message ?? 'ActiveMerge could not generate the document.');
       }
     } catch (e) {
-      setError(errorMessage(e));
+      fail(e);
     } finally {
       setGenerating(false);
     }
   };
 
-  if (!templates && !error) {
+  if (status === 'disconnected') {
+    return <ConnectPrompt connectUrl={connectUrl} error={connectError} />;
+  }
+
+  if (status === 'loading' || (!templates && !error)) {
     return <Spinner />;
   }
 

@@ -10,7 +10,7 @@
   "permissions": [
     {
       "permission": "secret_write",
-      "purpose": "Stores your ActiveMerge API key securely so you only enter it once."
+      "purpose": "Stores your ActiveMerge sign-in securely so you stay connected."
     },
     {
       "permission": "customer_read",
@@ -23,19 +23,38 @@
   ],
   "ui_extension": {
     "views": [
-      { "viewport": "settings", "component": "AppSettings" },
-      { "viewport": "stripe.dashboard.customer.detail", "component": "CustomerDetail" },
-      { "viewport": "stripe.dashboard.invoice.detail", "component": "InvoiceDetail" }
+      {
+        "viewport": "settings",
+        "component": "AppSettings"
+      },
+      {
+        "viewport": "stripe.dashboard.drawer.default",
+        "component": "Home"
+      },
+      {
+        "viewport": "stripe.dashboard.customer.detail",
+        "component": "CustomerDetail"
+      },
+      {
+        "viewport": "stripe.dashboard.invoice.detail",
+        "component": "InvoiceDetail"
+      }
     ],
     "content_security_policy": {
-      "connect-src": ["https://app.activemerge.com/api/"],
-      "purpose": "Sends the selected template and Stripe data to ActiveMerge to generate your document."
+      "connect-src": [
+        "https://app.activemerge.com/api/stripe-app/",
+        "https://app.activemerge.com/oauth/token"
+      ],
+      "purpose": "Signs you in to ActiveMerge and sends the selected template and Stripe data to ActiveMerge to generate your document."
     }
   },
   "post_install_action": {
     "type": "settings"
   },
   "constants": {
-    "API_BASE": "https://app.activemerge.com/api"
+    "APP_ID": "com.activemerge.app",
+    "AUTH_BASE": "https://app.activemerge.com",
+    "API_BASE": "https://app.activemerge.com/api/stripe-app",
+    "OAUTH_CLIENT_ID": "REPLACE_WITH_CLIENT_ID_FROM_ARTISAN_COMMAND"
   }
 }
